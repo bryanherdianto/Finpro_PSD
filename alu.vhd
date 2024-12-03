@@ -4,10 +4,10 @@ USE ieee.numeric_std.ALL;
 USE ieee.std_logic_textio.ALL;
 USE std.textio.ALL;
 
-ENTITY MMU IS
-END MMU;
+ENTITY ALU IS
+END ALU;
 
-ARCHITECTURE sim OF MMU IS
+ARCHITECTURE sim OF ALU IS
 
     TYPE header_type IS ARRAY (0 TO 53) OF CHARACTER;
 
@@ -25,22 +25,19 @@ ARCHITECTURE sim OF MMU IS
     -- Kernel size and array type
     CONSTANT KERNEL_SIZE : INTEGER := 3;
     TYPE kernel_array IS ARRAY (0 TO KERNEL_SIZE - 1, 0 TO KERNEL_SIZE - 1) OF REAL;
-    TYPE kernel_flatten IS ARRAY (0 TO KERNEL_SIZE * KERNEL_SIZE - 1) OF REAL;
 
 BEGIN
     PROCESS
         TYPE char_file IS FILE OF CHARACTER;
         FILE bmp_file : char_file OPEN read_mode IS "example2.bmp";
-        FILE out_file : char_file OPEN write_mode IS "out_im2col.bmp";
+        FILE out_file : char_file OPEN write_mode IS "out_conv.bmp";
         VARIABLE header : header_type;
         VARIABLE image_width : INTEGER;
         VARIABLE image_height : INTEGER;
         VARIABLE row : row_pointer;
         VARIABLE temp_row : row_pointer;
-        VARIABLE row_resized : row_pointer;
         VARIABLE image : image_pointer;
         VARIABLE temp_image : image_pointer;
-        VARIABLE image_resized : image_pointer;
         VARIABLE padding : INTEGER;
         VARIABLE char : CHARACTER;
         FILE kernel_file : text OPEN read_mode IS "custom.txt"; -- Open file for reading
@@ -50,10 +47,6 @@ BEGIN
         VARIABLE kernel : kernel_array := ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0));
         VARIABLE red_result, green_result, blue_result : INTEGER;
         VARIABLE denominator : real;
-        VARIABLE kernel_flattened : kernel_flatten := (OTHERS => 0.0);
-        VARIABLE sum_red : REAL;
-        VARIABLE sum_blue : REAL;
-        VARIABLE sum_green : REAL;
     BEGIN
 
         -- Read entire header
@@ -123,21 +116,15 @@ BEGIN
                         read(line_in, denominator); -- Read denominator
                         value_in := value_in / denominator;
                         kernel(row_txt, col_txt) := value_in;
-                        -- REPORT "Kernel(" & INTEGER'image(row_txt) & ", " &
-                        --     INTEGER'image(col_txt) & ") = " & REAL'image(kernel(row_txt, col_txt));
+                        REPORT "Kernel(" & INTEGER'image(row_txt) & ", " &
+                            INTEGER'image(col_txt) & ") = " & REAL'image(kernel(row_txt, col_txt));
                         NEXT;
                     END IF;
                 END IF;
 
                 kernel(row_txt, col_txt) := value_in;
-                -- REPORT "Kernel(" & INTEGER'image(row_txt) & ", " &
-                --     INTEGER'image(col_txt) & ") = " & REAL'image(kernel(row_txt, col_txt));
-            END LOOP;
-        END LOOP;
-
-        FOR row_i IN 0 TO KERNEL_SIZE - 1 LOOP
-            FOR col_i IN 0 TO KERNEL_SIZE - 1 LOOP
-                kernel_flattened(row_i * KERNEL_SIZE + col_i) := kernel(row_i, col_i);
+                REPORT "Kernel(" & INTEGER'image(row_txt) & ", " &
+                    INTEGER'image(col_txt) & ") = " & REAL'image(kernel(row_txt, col_txt));
             END LOOP;
         END LOOP;
 
@@ -147,7 +134,6 @@ BEGIN
         -- Create a new image type in dynamic memory
         temp_image := NEW image_type(0 TO image_height + 1);
         image := NEW image_type(0 TO image_height + 1);
-        image_resized := NEW image_type(0 TO image_height * image_width - 1);
 
         -- REPORT "BEFORE";
 
@@ -204,70 +190,72 @@ BEGIN
 
         END LOOP;
 
-        FOR row_i IN 0 TO image_height * image_width - 1 LOOP
-            row_resized := NEW row_type(0 TO KERNEL_SIZE * KERNEL_SIZE - 1);
-            image_resized(row_i) := row_resized;
-        END LOOP;
-
         -- REPORT "AFTER";
 
-        FOR row_i IN 0 TO image_height * image_width - 1 LOOP
-            row := image_resized(row_i);
+        FOR row_i IN 1 TO image_height LOOP
+            row := image(row_i);
 
-            FOR col_i IN 0 TO KERNEL_SIZE * KERNEL_SIZE - 1 LOOP
-                row(col_i).red := temp_image(row_i / image_width + col_i / KERNEL_SIZE)(row_i MOD image_width + col_i MOD KERNEL_SIZE).red;
-                row(col_i).green := temp_image(row_i / image_width + col_i / KERNEL_SIZE)(row_i MOD image_width + col_i MOD KERNEL_SIZE).green;
-                row(col_i).blue := temp_image(row_i / image_width + col_i / KERNEL_SIZE)(row_i MOD image_width + col_i MOD KERNEL_SIZE).blue;
+            FOR col_i IN 1 TO image_width LOOP
+                -- Compute the red channel with clamping
+                red_result := INTEGER(kernel(0, 0) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i - 1).red))) +
+                    kernel(0, 1) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i).red))) +
+                    kernel(0, 2) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i + 1).red))) +
+                    kernel(1, 0) * REAL(to_integer(unsigned(temp_image(row_i)(col_i - 1).red))) +
+                    kernel(1, 1) * REAL(to_integer(unsigned(temp_image(row_i)(col_i).red))) +
+                    kernel(1, 2) * REAL(to_integer(unsigned(temp_image(row_i)(col_i + 1).red))) +
+                    kernel(2, 0) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i - 1).red))) +
+                    kernel(2, 1) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i).red))) +
+                    kernel(2, 2) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i + 1).red))));
 
-                -- REPORT INTEGER'image(row_i / image_width + col_i / KERNEL_SIZE) & " " & 
-                --     INTEGER'image(row_i MOD image_width + col_i MOD KERNEL_SIZE) & ": " &
-                --     INTEGER'image(to_integer(unsigned(row(col_i).red))) & " " &
+                IF red_result > 255 THEN
+                    red_result := 255; -- Clamp to 255
+                ELSIF red_result < 0 THEN
+                    red_result := 0; -- Clamp to 0 (in case of underflow)
+                END IF;
+
+                row(col_i).red := STD_LOGIC_VECTOR(to_unsigned(red_result, 8));
+
+                -- Compute the green channel with clamping
+                green_result := INTEGER(kernel(0, 0) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i - 1).green))) +
+                    kernel(0, 1) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i).green))) +
+                    kernel(0, 2) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i + 1).green))) +
+                    kernel(1, 0) * REAL(to_integer(unsigned(temp_image(row_i)(col_i - 1).green))) +
+                    kernel(1, 1) * REAL(to_integer(unsigned(temp_image(row_i)(col_i).green))) +
+                    kernel(1, 2) * REAL(to_integer(unsigned(temp_image(row_i)(col_i + 1).green))) +
+                    kernel(2, 0) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i - 1).green))) +
+                    kernel(2, 1) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i).green))) +
+                    kernel(2, 2) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i + 1).green))));
+
+                IF green_result > 255 THEN
+                    green_result := 255; -- Clamp to 255
+                ELSIF green_result < 0 THEN
+                    green_result := 0; -- Clamp to 0
+                END IF;
+
+                row(col_i).green := STD_LOGIC_VECTOR(to_unsigned(green_result, 8));
+
+                -- Compute the blue channel with clamping
+                blue_result := INTEGER(kernel(0, 0) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i - 1).blue))) +
+                    kernel(0, 1) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i).blue))) +
+                    kernel(0, 2) * REAL(to_integer(unsigned(temp_image(row_i - 1)(col_i + 1).blue))) +
+                    kernel(1, 0) * REAL(to_integer(unsigned(temp_image(row_i)(col_i - 1).blue))) +
+                    kernel(1, 1) * REAL(to_integer(unsigned(temp_image(row_i)(col_i).blue))) +
+                    kernel(1, 2) * REAL(to_integer(unsigned(temp_image(row_i)(col_i + 1).blue))) +
+                    kernel(2, 0) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i - 1).blue))) +
+                    kernel(2, 1) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i).blue))) +
+                    kernel(2, 2) * REAL(to_integer(unsigned(temp_image(row_i + 1)(col_i + 1).blue))));
+
+                IF blue_result > 255 THEN
+                    blue_result := 255; -- Clamp to 255
+                ELSIF blue_result < 0 THEN
+                    blue_result := 0; -- Clamp to 0
+                END IF;
+
+                row(col_i).blue := STD_LOGIC_VECTOR(to_unsigned(blue_result, 8));
+
+                -- REPORT INTEGER'image(to_integer(unsigned(row(col_i).red))) & " " &
                 --     INTEGER'image(to_integer(unsigned(row(col_i).green))) & " " &
                 --     INTEGER'image(to_integer(unsigned(row(col_i).blue)));
-            END LOOP;
-        END LOOP;
-
-        -- Iterate over each row of Matrix A
-        FOR row_i IN 0 TO image_height * image_width - 1 LOOP
-            row := image(row_i / image_width);
-            -- Iterate over each column of Matrix B
-            sum_red := 0.0;
-            sum_blue := 0.0;
-            sum_green := 0.0;
-            FOR col_i IN 0 TO KERNEL_SIZE * KERNEL_SIZE - 1 LOOP
-                -- Compute the dot product of row i of A and column j of B
-                sum_red := sum_red + REAL(to_integer(unsigned(image_resized(row_i)(col_i).red))) * kernel_flattened(col_i);
-                sum_blue := sum_blue + REAL(to_integer(unsigned(image_resized(row_i)(col_i).blue))) * kernel_flattened(col_i);
-                sum_green := sum_green + REAL(to_integer(unsigned(image_resized(row_i)(col_i).green))) * kernel_flattened(col_i);
-            END LOOP;
-            IF sum_red < 0.0 THEN
-                sum_red := 0.0;
-            ELSIF sum_red > 255.0 THEN
-                sum_red := 255.0;
-            END IF;
-            IF sum_blue < 0.0 THEN
-                sum_blue := 0.0;
-            ELSIF sum_blue > 255.0 THEN
-                sum_blue := 255.0;
-            END IF;
-            IF sum_green < 0.0 THEN
-                sum_green := 0.0;
-            ELSIF sum_green > 255.0 THEN
-                sum_green := 255.0;
-            END IF;
-            row(row_i MOD image_width).red := STD_LOGIC_VECTOR(to_unsigned(INTEGER(sum_red), 8));
-            row(row_i MOD image_width).blue := STD_LOGIC_VECTOR(to_unsigned(INTEGER(sum_blue), 8));
-            row(row_i MOD image_width).green := STD_LOGIC_VECTOR(to_unsigned(INTEGER(sum_green), 8));
-        END LOOP;
-
-        -- Debugging output
-        FOR row_i IN 0 TO image_height LOOP
-            row := image(row_i);
-            -- Iterate over each column of Matrix B
-            FOR col_i IN 0 TO image_width LOOP
-                REPORT INTEGER'image(to_integer(unsigned(row(col_i).red))) & " " &
-                    INTEGER'image(to_integer(unsigned(row(col_i).green))) & " " &
-                    INTEGER'image(to_integer(unsigned(row(col_i).blue)));
             END LOOP;
         END LOOP;
 
@@ -276,10 +264,10 @@ BEGIN
             write(out_file, header(i));
         END LOOP;
 
-        FOR row_i IN 0 TO image_height - 1 LOOP
+        FOR row_i IN 1 TO image_height LOOP
             row := image(row_i);
 
-            FOR col_i IN 0 TO image_width - 1 LOOP
+            FOR col_i IN 1 TO image_width LOOP
 
                 -- Write blue pixel
                 write(out_file,
