@@ -156,7 +156,7 @@ BEGIN
 
                             IF char = '/' THEN
                                 read(line_in, denominator); -- Read denominator
-                                value_in            := value_in / denominator;
+                                value_in        := value_in / denominator;
                                 kernel(i, j)    := value_in;
                                 NEXT;
                             END IF;
@@ -227,7 +227,7 @@ BEGIN
 
                 FOR i IN 0 TO image_height * image_width - 1 LOOP
                     row_resized         := NEW row_type(0 TO KERNEL_SIZE * KERNEL_SIZE - 1);
-                    image_resized(i)  := row_resized;
+                    image_resized(i)    := row_resized;
                 END LOOP;
 
                 -- REPORT "AFTER";

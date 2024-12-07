@@ -146,8 +146,8 @@ BEGIN
 
                             IF char = '/' THEN
                                 read(line_in, denominator); -- Read denominator
-                                value_in := value_in / denominator;
-                                kernel(row_txt, col_txt) := value_in;
+                                value_in                    := value_in / denominator;
+                                kernel(row_txt, col_txt)    := value_in;
                                 NEXT;
                             END IF;
 
@@ -203,8 +203,8 @@ BEGIN
                     END LOOP;
 
                     -- Assign the row pointer to the image vector of rows
-                    temp_image(i) := temp_row;
-                    image(i) := row;
+                    temp_image(i)   := temp_row;
+                    image(i)        := row;
 
                 END LOOP;
 
