@@ -6,6 +6,7 @@ USE STD.TEXTIO.ALL;
 
 ENTITY ALU IS
     PORT (
+        -- Inputs
         CLK         : IN STD_LOGIC;
         ENABLE_ALU  : IN STD_LOGIC;
         OPCODE      : IN STD_LOGIC_VECTOR(2 DOWNTO 0)
@@ -14,26 +15,35 @@ END ENTITY ALU;
 
 ARCHITECTURE BEH OF ALU IS
 
+    -- Make header_type to store the BMP header
     TYPE header_type IS ARRAY (0 TO 53) OF CHARACTER;
 
+    -- Make pixel_type to store the pixel values in the image
     TYPE pixel_type IS RECORD
         red     : STD_LOGIC_VECTOR(7 DOWNTO 0);
         green   : STD_LOGIC_VECTOR(7 DOWNTO 0);
         blue    : STD_LOGIC_VECTOR(7 DOWNTO 0);
     END RECORD;
 
+    -- Make row_type to store the row of pixels in the image
     TYPE row_type IS ARRAY (INTEGER RANGE <>) OF pixel_type;
     TYPE row_pointer IS ACCESS row_type;
 
+    -- Make image_type to store the image as a 2D array of pixels
+    -- Later, each image_pointer will point to a row_pointer
     TYPE image_type IS ARRAY (INTEGER RANGE <>) OF row_pointer;
     TYPE image_pointer IS ACCESS image_type;
     
+    -- Make real_array_2d_type to store 2D arrays of real numbers
     TYPE REAL_ARRAY_2D_TYPE IS ARRAY (NATURAL RANGE <>, NATURAL RANGE <>) OF REAL;
 
+    -- Make a constant for the kernel size
     CONSTANT KERNEL_SIZE : INTEGER := 3;
 
 BEGIN
+
     PROCESS (CLK) IS
+
         TYPE char_file IS FILE OF CHARACTER;
         FILE bmp_file           : char_file;
         FILE out_file           : char_file;
@@ -55,9 +65,11 @@ BEGIN
         VARIABLE denominator    : REAL;
         VARIABLE file_name      : STRING(1 TO 20);
         VARIABLE kernel         : REAL_ARRAY_2D_TYPE(0 TO KERNEL_SIZE - 1, 0 TO KERNEL_SIZE - 1);
+
     BEGIN
         IF RISING_EDGE(CLK) THEN
             IF ENABLE_ALU = '1' THEN
+            
                 -- Select the input file name based on OPCODE
                 CASE OPCODE IS
                     WHEN "000" =>
@@ -107,11 +119,11 @@ BEGIN
                        CHARACTER'pos(header(15)) = 0 AND
                        CHARACTER'pos(header(16)) = 0 AND
                        CHARACTER'pos(header(17)) = 0
-                REPORT "DIB headers size is not 40 bytes, is this a Windows BMP?" SEVERITY failure;
+                REPORT "DIB headers size is not 40 bytes, hence not a Windows BMP" SEVERITY failure;
 
                 -- Check that the number of color planes is 1
                 ASSERT CHARACTER'pos(header(26)) = 1 AND CHARACTER'pos(header(27)) = 0
-                REPORT "Color planes is not 1" SEVERITY failure;
+                REPORT "The number of color planes is not 1" SEVERITY failure;
 
                 -- Check that the number of bits per pixel is 24
                 ASSERT CHARACTER'pos(header(28)) = 24 AND CHARACTER'pos(header(29)) = 0
@@ -129,6 +141,7 @@ BEGIN
                                 CHARACTER'pos(header(24)) * 2 ** 16 +
                                 CHARACTER'pos(header(25)) * 2 ** 24;
 
+                -- Report the image width and height
                 REPORT "WIDTH: " & INTEGER'image(image_width) & ", HEIGHT: " & INTEGER'image(image_height);
 
                 -- Number of bytes needed to pad each row to 32 bits
@@ -158,13 +171,11 @@ BEGIN
                     END LOOP;
                 END LOOP;
 
-                -- Close the file after reading
-                file_close(kernel_file);
-
                 -- Create a new image type in dynamic memory
                 temp_image  := NEW image_type(0 TO image_height + 1);
                 image       := NEW image_type(0 TO image_height + 1);
 
+                -- Iterate to read the image and initialize the image pointers
                 FOR i IN 0 TO image_height + 1 LOOP
 
                     -- Create a new row type in dynamic memory
@@ -173,6 +184,7 @@ BEGIN
 
                     FOR j IN 0 TO image_width + 1 LOOP
 
+                        -- Zero padding for the first and last rows and columns
                         IF i = 0 OR i = image_height + 1 OR j = 0 OR j = image_width + 1 THEN
                             temp_row(j).red     := (OTHERS => '0');
                             temp_row(j).green   := (OTHERS => '0');
@@ -298,7 +310,9 @@ BEGIN
 
                     END LOOP;
 
+                    -- Deallocate the row
                     deallocate(row);
+                    deallocate(temp_row);
 
                     -- Write padding
                     FOR i IN 1 TO padding LOOP
@@ -309,10 +323,12 @@ BEGIN
 
                 -- Deallocate the image
                 deallocate(image);
+                deallocate(temp_image);
 
                 -- Close the files
                 file_close(bmp_file);
                 file_close(out_file);
+                file_close(kernel_file);
 
             END IF;
         END IF;
