@@ -27,5 +27,5 @@ Mengembangkan solusi berbasis FPGA untuk konvolusi gambar menggunakan VHDL,denga
 Implementasi sistem konvolusi dengan dukungan pemilihan kernel dinamis melalui opcode
 Pemrosesan gambar dalam format BMP
 Mengoptimalkan kernel kompleks seperti Sobel dan Laplacian menggunakan MMU.
-Link Laporan:https://docs.google.com/document/d/17ilK34_mSZogQsr9umX2pfoPUGDfs4dSQObVMxubVcQ/edit?tab=t.0#heading=h.3at9u9s4e0vp
+Link Laporan: https://docs.google.com/document/d/1dmlOlWl9W26csWaYqnI9CpCi0aAzKY-OyjDwy2cv5Hw/edit?usp=sharing
 Link Slide: https://docs.google.com/presentation/d/1gRGA1_YoZ8G1khiH8HjUHjmyRaqO5o_jYUOknT4tw5A/edit
