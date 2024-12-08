@@ -18,6 +18,7 @@
 | 1101 | sobel horizontal kernel with MMU |
 | 1110 | sobel vertical kernel with MMU |
 | 1111 | custom kernel with MMU |
+
 Proyek akhir ini mendemonstrasikan implementasi konvulusi gambar menggunakan VHDL. Desain ini mengintegrasikan “Matrix Multiplier Unit” (MMU) dan “Arithmetic Logic Unit” (ALU) untuk mempercepat pemrosesan dengan berbagai kernel seperti box blur, sharpening, dan edge detection. Sistem ini mendukung pemilihan kernel dinamis berbasis file dan penangganan opcode khusus. Hasil pengujian memvalidasi kemampuan sistem untuk menangani pemrosesan gambar dengan presisi dan efisiensi.
 Latar Belakang:
 Pemrosesan gambar adalah operasi yang membutuhkan komputasi intensif, terutama untuk tugas seperti konvolusi. Dengan mempercepat proses ini menggunakan perangkat keras seperti FPGA, sistem dapat mencapai efisiensi yang lebih tinggi dibandingkan pemrosesan berbasis perangkat lunak.
